@@ -89,9 +89,14 @@ export default async function handler(req, res) {
     const isProduction = process.env.NODE_ENV === "production";
     
     if (isProduction) {
+      // Configure @sparticuz/chromium for serverless environment
+      await chromium.font(
+        'https://raw.githack.com/googlei18n/noto-emoji/master/fonts/NotoColorEmoji.ttf'
+      );
+      
       // Use @sparticuz/chromium for serverless environment
       browser = await playwrightChromium.launch({
-        args: chromium.args,
+        args: [...chromium.args, '--disable-dev-shm-usage'],
         executablePath: await chromium.executablePath(),
         headless: true,
       });
