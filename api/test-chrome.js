@@ -1,8 +1,8 @@
-import chromium from 'chrome-aws-lambda';
+import chromium from '@sparticuz/chromium';
 
 export default async function handler(req, res) {
   try {
-    const executablePath = await chromium.executablePath;
+    const executablePath = await chromium.executablePath();
     
     return res.json({
       success: true,

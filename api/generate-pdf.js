@@ -1,4 +1,4 @@
-import chromium from "chrome-aws-lambda";
+import chromium from "@sparticuz/chromium";
 import { chromium as playwrightChromium } from "playwright-core";
 import dotenv from "dotenv";
 
@@ -85,18 +85,14 @@ export default async function handler(req, res) {
 
     console.log("Starting PDF generation...");
 
-    // Launch browser (use chrome-aws-lambda for Vercel)
+    // Launch browser (use @sparticuz/chromium for Vercel)
     const isProduction = process.env.NODE_ENV === "production";
     
     if (isProduction) {
-      // Use chrome-aws-lambda for serverless environment
-      const executablePath = await chromium.executablePath;
-      console.log('Chrome executable path type:', typeof executablePath);
-      console.log('Chrome executable path:', executablePath);
-      
+      // Use @sparticuz/chromium for serverless environment
       browser = await playwrightChromium.launch({
         args: chromium.args,
-        executablePath: executablePath,
+        executablePath: await chromium.executablePath(),
         headless: chromium.headless,
       });
     } else {
