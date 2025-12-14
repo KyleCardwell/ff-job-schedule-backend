@@ -83,18 +83,21 @@ export default async function handler(req, res) {
       preferCSSPageSize: true
     };
 
-    console.log('Starting PDF generation...');
+console.log('Starting PDF generation...');
 
     // Launch browser (use chrome-aws-lambda for Vercel)
     const isProduction = process.env.NODE_ENV === 'production';
     
-    browser = await playwrightChromium.launch({
-      args: isProduction ? chromium.args : [],
-      executablePath: isProduction 
-        ? await chromium.executablePath() 
-        : undefined,
+    const launchOptions = {
       headless: chromium.headless || true
-    });
+    };
+    
+    if (isProduction) {
+      launchOptions.args = chromium.args;
+      launchOptions.executablePath = await chromium.executablePath;
+    }
+    
+    browser = await playwrightChromium.launch(launchOptions);
 
     console.log('Browser launched');
 
