@@ -14,7 +14,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
     "playwright-core": "^1.48.2",
-    "@sparticuz/chromium": "^128.0.0"
+    "@sparticuz/chromium": "^131.0.0"
   },
   "devDependencies": {
     "playwright": "^1.48.2"
