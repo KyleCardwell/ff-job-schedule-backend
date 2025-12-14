@@ -91,7 +91,7 @@ export default async function handler(req, res) {
     browser = await playwrightChromium.launch({
       args: isProduction ? chromium.args : [],
       executablePath: isProduction 
-        ? await chromium.executablePath 
+        ? await chromium.executablePath() 
         : undefined,
       headless: chromium.headless || true
     });
