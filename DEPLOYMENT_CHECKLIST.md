@@ -38,6 +38,7 @@ Add these in Vercel Project Settings → Environment Variables:
 - [ ] `SUPABASE_SERVICE_KEY` = Your Supabase service role key (⚠️ KEEP SECRET!)
 - [ ] `SUPABASE_ANON_KEY` = Your Supabase anon key (if needed)
 
+
 ### Git Repository
 - [ ] Code committed to Git
 - [ ] `.env` is in `.gitignore` (✅ already configured)
