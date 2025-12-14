@@ -102,13 +102,25 @@ export default async function handler(req, res) {
     } else if (html) {
       console.log('Setting HTML content');
       await page.setContent(html, { 
-        waitUntil: 'networkidle',
+        waitUntil: 'domcontentloaded',
         timeout: 30000 
+      });
+      
+      // Wait for external resources (like Tailwind CSS) to load
+      await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
+        console.log('Network idle timeout - continuing anyway');
       });
     }
 
-    // Wait a bit for any dynamic content
+    // Wait for content to render (reduced since we're using inline styles now)
     await page.waitForTimeout(1000);
+    
+    // Check if body has content
+    const bodyContent = await page.evaluate(() => document.body.innerHTML).catch(() => '');
+    console.log('Body content length:', bodyContent.length);
+    if (bodyContent.length < 100) {
+      console.warn('Warning: Body content seems very short');
+    }
 
     // Generate PDF
     console.log('Generating PDF...');

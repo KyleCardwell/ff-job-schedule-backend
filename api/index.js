@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import generatePdfHandler from './generate-pdf.js';
 
 dotenv.config();
 
@@ -35,6 +36,9 @@ app.get('/api', (req, res) => {
     }
   });
 });
+
+// PDF generation endpoint
+app.post('/api/generate-pdf', generatePdfHandler);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
