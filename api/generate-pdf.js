@@ -87,17 +87,24 @@ export default async function handler(req, res) {
 
     // Launch browser (use chrome-aws-lambda for Vercel)
     const isProduction = process.env.NODE_ENV === "production";
-
-    const launchOptions = {
-      headless: chromium.headless || true,
-    };
-
+    
     if (isProduction) {
-      launchOptions.args = chromium.args;
-      launchOptions.executablePath = await chromium.executablePath;
+      // Use chrome-aws-lambda for serverless environment
+      const executablePath = await chromium.executablePath;
+      console.log('Chrome executable path type:', typeof executablePath);
+      console.log('Chrome executable path:', executablePath);
+      
+      browser = await playwrightChromium.launch({
+        args: chromium.args,
+        executablePath: executablePath,
+        headless: chromium.headless,
+      });
+    } else {
+      // Use local Chrome for development
+      browser = await playwrightChromium.launch({
+        headless: true,
+      });
     }
-
-    browser = await playwrightChromium.launch(launchOptions);
 
     console.log("Browser launched");
 
