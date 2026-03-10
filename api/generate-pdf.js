@@ -13,14 +13,15 @@ dotenv.config();
  *   url?: string,           // URL to convert to PDF
  *   html?: string,          // HTML content to convert to PDF
  *   options?: {
- *     format?: string,      // Paper format (Letter, A4, etc.)
+ *     format?: string,      // Paper format (Letter, A4, etc.) — ignored when width/height provided
+ *     width?: string,       // Custom page width  e.g. "24in"
+ *     height?: string,      // Custom page height e.g. "18in"
  *     printBackground?: boolean,
  *     landscape?: boolean,
  *     margin?: { top, right, bottom, left },
  *     scale?: number,
- *     displayHeaderFooter?: boolean,
- *     headerTemplate?: string,
- *     footerTemplate?: string
+ *     viewportWidth?: number,  // Browser viewport width in px (default 1920)
+ *     viewportHeight?: number  // Browser viewport height in px (default 1080)
  *   }
  * }
  */
@@ -65,25 +66,34 @@ export default async function handler(req, res) {
       });
     }
 
-    // Default PDF options
+    // Build PDF options — use custom width/height when provided, otherwise fall back to format
     const pdfOptions = {
-      format: options.format || "Letter",
       printBackground: options.printBackground !== false,
       landscape: options.landscape || false,
       margin: options.margin || {
-        top: "0.5in",
-        right: "0.5in",
-        bottom: "0.5in",
-        left: "0.5in",
+        top: "0.25in",
+        right: "0.25in",
+        bottom: "0.25in",
+        left: "0.25in",
       },
       scale: options.scale || 1,
-      displayHeaderFooter: options.displayHeaderFooter || false,
-      headerTemplate: options.headerTemplate || "",
-      footerTemplate: options.footerTemplate || "",
-      preferCSSPageSize: true,
+      displayHeaderFooter: false,
+      preferCSSPageSize: false,
     };
 
+    if (options.width && options.height) {
+      pdfOptions.width = options.width;
+      pdfOptions.height = options.height;
+    } else {
+      pdfOptions.format = options.format || "Letter";
+    }
+
+    const viewportWidth = options.viewportWidth || 1920;
+    const viewportHeight = options.viewportHeight || 1080;
+
     console.log("Starting PDF generation...");
+    console.log("PDF options:", JSON.stringify(pdfOptions));
+    console.log(`Viewport: ${viewportWidth}x${viewportHeight}`);
 
     // Launch browser (use @sparticuz/chromium for Vercel)
     const isProduction = process.env.NODE_ENV === "production";
@@ -110,8 +120,8 @@ export default async function handler(req, res) {
     console.log("Browser launched");
 
     const context = await browser.newContext({
-      viewport: { width: 1920, height: 1080 },
-      deviceScaleFactor: 1,
+      viewport: { width: viewportWidth, height: viewportHeight },
+      deviceScaleFactor: 2,
     });
 
     const page = await context.newPage();
@@ -124,22 +134,15 @@ export default async function handler(req, res) {
         timeout: 30000,
       });
     } else if (html) {
-      console.log("Setting HTML content");
+      console.log("Setting HTML content, length:", html.length);
       await page.setContent(html, {
         waitUntil: "domcontentloaded",
         timeout: 30000,
       });
 
-      // Wait for external resources (like Tailwind CSS) to load
-      await page
-        .waitForLoadState("networkidle", { timeout: 10000 })
-        .catch(() => {
-          console.log("Network idle timeout - continuing anyway");
-        });
+      // Wait briefly for any inline resources to settle
+      await page.waitForTimeout(500);
     }
-
-    // Wait for content to render (reduced since we're using inline styles now)
-    await page.waitForTimeout(1000);
 
     // Check if body has content
     const bodyContent = await page
@@ -158,7 +161,7 @@ export default async function handler(req, res) {
     await browser.close();
     browser = null;
 
-    console.log("PDF generated successfully");
+    console.log("PDF generated successfully, size:", pdfBuffer.length);
 
     // Return PDF as base64
     const base64Pdf = pdfBuffer.toString("base64");
