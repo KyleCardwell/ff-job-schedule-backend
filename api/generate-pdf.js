@@ -1,12 +1,12 @@
-import chromium from "@sparticuz/chromium";
 import { chromium as playwrightChromium } from "playwright-core";
+import Browserbase from "@browserbasehq/sdk";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 /**
- * Generate PDF using Playwright
- * Accepts URL or HTML content to convert to PDF
+ * Generate PDF using Playwright + Browserbase
+ * Connects to a remote Browserbase-hosted Chromium browser via CDP.
  *
  * Request body:
  * {
@@ -19,9 +19,7 @@ dotenv.config();
  *     printBackground?: boolean,
  *     landscape?: boolean,
  *     margin?: { top, right, bottom, left },
- *     scale?: number,
- *     viewportWidth?: number,  // Browser viewport width in px (default 1920)
- *     viewportHeight?: number  // Browser viewport height in px (default 1080)
+ *     scale?: number
  *   }
  * }
  */
@@ -66,6 +64,13 @@ export default async function handler(req, res) {
       });
     }
 
+    // Validate Browserbase credentials
+    if (!process.env.BROWSERBASE_API_KEY || !process.env.BROWSERBASE_PROJECT_ID) {
+      return res.status(500).json({
+        error: "Browserbase credentials not configured. Set BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID.",
+      });
+    }
+
     // Build PDF options — use custom width/height when provided, otherwise fall back to format
     const pdfOptions = {
       printBackground: options.printBackground !== false,
@@ -88,43 +93,27 @@ export default async function handler(req, res) {
       pdfOptions.format = options.format || "Letter";
     }
 
-    const viewportWidth = options.viewportWidth || 1920;
-    const viewportHeight = options.viewportHeight || 1080;
-
-    console.log("Starting PDF generation...");
+    console.log("Starting PDF generation via Browserbase...");
     console.log("PDF options:", JSON.stringify(pdfOptions));
-    console.log(`Viewport: ${viewportWidth}x${viewportHeight}`);
 
-    // Launch browser (use @sparticuz/chromium for Vercel)
-    const isProduction = process.env.NODE_ENV === "production";
-    
-    if (isProduction) {
-      // Configure @sparticuz/chromium for serverless environment
-      await chromium.font(
-        'https://raw.githack.com/googlei18n/noto-emoji/master/fonts/NotoColorEmoji.ttf'
-      );
-      
-      // Use @sparticuz/chromium for serverless environment
-      browser = await playwrightChromium.launch({
-        args: [...chromium.args, '--disable-dev-shm-usage'],
-        executablePath: await chromium.executablePath(),
-        headless: true,
-      });
-    } else {
-      // Use local Chrome for development
-      browser = await playwrightChromium.launch({
-        headless: true,
-      });
-    }
-
-    console.log("Browser launched");
-
-    const context = await browser.newContext({
-      viewport: { width: viewportWidth, height: viewportHeight },
-      deviceScaleFactor: 2,
+    // Create a Browserbase session and connect via CDP
+    const bb = new Browserbase({
+      apiKey: process.env.BROWSERBASE_API_KEY,
     });
 
-    const page = await context.newPage();
+    const session = await bb.sessions.create({
+      projectId: process.env.BROWSERBASE_PROJECT_ID,
+    });
+
+    console.log("Browserbase session created:", session.id);
+
+    browser = await playwrightChromium.connectOverCDP(session.connectUrl);
+
+    console.log("Connected to Browserbase browser");
+
+    // Get the default context and page from the Browserbase session
+    const defaultContext = browser.contexts()[0];
+    const page = defaultContext.pages()[0];
 
     // Navigate to URL or set HTML content
     if (url) {
@@ -157,7 +146,8 @@ export default async function handler(req, res) {
     console.log("Generating PDF...");
     const pdfBuffer = await page.pdf(pdfOptions);
 
-    // Close browser
+    // Close browser connection
+    await page.close();
     await browser.close();
     browser = null;
 
